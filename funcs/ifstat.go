@@ -1,9 +1,9 @@
 package funcs
 
 import (
+	"log"
 	"strings"
-
-	"github.com/freedomkk-qfeng/windows-agent/g"
+	//	"github.com/freedomkk-qfeng/windows-agent/g"
 	"github.com/open-falcon/common/model"
 	"github.com/shirou/gopsutil/net"
 )
@@ -22,29 +22,31 @@ func net_status(ifacePrefix []string) ([]net.IOCountersStat, error) {
 }
 
 func NetMetrics() []*model.MetricValue {
-	return CoreNetMetrics(g.Config().Collector.IfacePrefix)
+	return CoreNetMetrics()
 }
 
-func CoreNetMetrics(ifacePrefix []string) (L []*model.MetricValue) {
+func CoreNetMetrics() []*model.MetricValue {
 
-	netIfs, err := net_status(ifacePrefix)
+	netIfs, err := NetIOCounters(true)
 	if err != nil {
-		g.Logger().Println(err)
+		log.Println("Get netInfo fail: ", err)
 		return []*model.MetricValue{}
 	}
 
-	for _, netIf := range netIfs {
+	cnt := len(netIfs)
+	ret := make([]*model.MetricValue, cnt*8)
+
+	for idx, netIf := range netIfs {
 		iface := "iface=" + netIf.Name
-		L = append(L, CounterValue("net.if.in.bytes", netIf.BytesRecv, iface)) //此处乘以8即为bit的流量
-		L = append(L, CounterValue("net.if.in.packets", netIf.PacketsRecv, iface))
-		L = append(L, CounterValue("net.if.in.errors", netIf.Errin, iface))
-		L = append(L, CounterValue("net.if.in.dropped", netIf.Dropin, iface))
-		L = append(L, CounterValue("net.if.in.fifo.errs", netIf.Fifoin, iface))
-		L = append(L, CounterValue("net.if.out.bytes", netIf.BytesSent, iface)) //此处乘以8即为bit的流量
-		L = append(L, CounterValue("net.if.out.packets", netIf.PacketsSent, iface))
-		L = append(L, CounterValue("net.if.out.errors", netIf.Errout, iface))
-		L = append(L, CounterValue("net.if.out.dropped", netIf.Dropout, iface))
-		L = append(L, CounterValue("net.if.out.fifo.errs", netIf.Fifoout, iface))
+		ret[idx*8+0] = CounterValue("net.if.in.bytes", netIf.BytesRecv, iface)
+		ret[idx*8+1] = CounterValue("net.if.in.packets", netIf.PacketsRecv, iface)
+		ret[idx*8+2] = CounterValue("net.if.in.errors", netIf.Errin, iface)
+		ret[idx*8+3] = CounterValue("net.if.in.dropped", netIf.Dropin, iface)
+		ret[idx*8+4] = CounterValue("net.if.out.bytes", netIf.BytesSent, iface)
+		ret[idx*8+5] = CounterValue("net.if.out.packets", netIf.PacketsSent, iface)
+		ret[idx*8+6] = CounterValue("net.if.out.errors", netIf.Errout, iface)
+		ret[idx*8+7] = CounterValue("net.if.out.dropped", netIf.Dropout, iface)
+
 	}
-	return
+	return ret
 }
